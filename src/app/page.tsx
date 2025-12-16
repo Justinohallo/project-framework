@@ -1,11 +1,69 @@
 import type { User } from "@prisma/client";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { LogoutButton } from "@/components/logout-button";
 import prisma from "@/lib/prisma";
 
-export default async function Home() {
+export async function createUser(formData: FormData) {
+  "use server";
+
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect("/login");
+  }
+
+  const emailValue = formData.get("email");
+  const nameValue = formData.get("name");
+
+  const email =
+    typeof emailValue === "string" ? emailValue.trim().toLowerCase() : "";
+  const name =
+    typeof nameValue === "string" && nameValue.trim().length > 0
+      ? nameValue.trim()
+      : null;
+
+  if (!email) {
+    redirect(`/?error=${encodeURIComponent("Email is required")}`);
+  }
+
+  try {
+    await prisma.user.create({
+      data: {
+        email,
+        name,
+      },
+    });
+  } catch (error) {
+    console.error("Error creating user:", error);
+    redirect(
+      `/?error=${encodeURIComponent(
+        "Could not create user. Please try again."
+      )}`
+    );
+  }
+
+  revalidatePath("/");
+  redirect(`/?success=${encodeURIComponent("User added successfully.")}`);
+}
+
+export async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const resolvedSearchParams = await searchParams;
+  const successMessage =
+    typeof resolvedSearchParams?.success === "string"
+      ? resolvedSearchParams.success
+      : undefined;
+  const errorMessage =
+    typeof resolvedSearchParams?.error === "string"
+      ? resolvedSearchParams.error
+      : undefined;
+
   const session = await auth();
 
   if (!session?.user) {
@@ -24,7 +82,9 @@ export default async function Home() {
       </header>
 
       {users.length === 0 ? (
-        <p className="text-gray-600">No users found. Create one via the API!</p>
+        <p className="text-gray-600">
+          No users found. Add one with the form below.
+        </p>
       ) : (
         <div className="space-y-4">
           {users.map((user: User) => (
@@ -45,13 +105,56 @@ export default async function Home() {
       )}
 
       <div className="mt-8 p-4 bg-gray-50 rounded-lg">
-        <p className="text-sm text-gray-600">
-          Create a new user via POST request to /api/users
-        </p>
-        <code className="text-xs bg-white p-2 rounded mt-2 block">
-          {`curl -X POST http://localhost:3000/api/users -H "Content-Type: application/json" -d '{"email": "test@example.com", "name": "Test User"}'`}
-        </code>
+        <h2 className="text-lg font-semibold text-gray-900">Add a new user</h2>
+        {errorMessage ? (
+          <p className="mt-2 text-sm text-red-600" role="alert">
+            {errorMessage}
+          </p>
+        ) : null}
+        {successMessage ? (
+          <p className="mt-2 text-sm text-green-700" role="status">
+            {successMessage}
+          </p>
+        ) : null}
+        <form action={createUser} className="mt-4 space-y-4">
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Email
+            </label>
+            <input
+              type="email"
+              name="email"
+              required
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-black focus:outline-none"
+              placeholder="user@example.com"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Name (optional)
+            </label>
+            <input
+              type="text"
+              name="name"
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-black focus:outline-none"
+              placeholder="User name"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              className="rounded-md bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-black/80"
+            >
+              Add user
+            </button>
+            <p className="text-xs text-gray-600">
+              Submits directly from the dashboard.
+            </p>
+          </div>
+        </form>
       </div>
     </div>
   );
 }
+
+export default HomePage;
