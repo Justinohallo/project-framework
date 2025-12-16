@@ -1,3 +1,4 @@
+import type { User } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
@@ -26,7 +27,7 @@ export default async function Home() {
         <p className="text-gray-600">No users found. Create one via the API!</p>
       ) : (
         <div className="space-y-4">
-          {users.map((user) => (
+          {users.map((user: User) => (
             <div
               key={user.id}
               className="border border-gray-200 rounded-lg p-4"
