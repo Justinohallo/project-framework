@@ -1,5 +1,5 @@
 // Export types from Prisma
-export type { User } from "@prisma/client";
+export type { User, Project } from "@prisma/client";
 
 // Add custom application types here
 export interface ApiResponse<T = unknown> {
