@@ -1,13 +1,26 @@
+import { redirect } from "next/navigation";
+
+import { auth } from "@/auth";
+import { LogoutButton } from "@/components/logout-button";
 import prisma from "@/lib/prisma";
 
 export default async function Home() {
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect("/login");
+  }
+
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
   });
 
   return (
     <div className="min-h-screen p-8">
-      <h1 className="text-2xl font-bold mb-6">Users</h1>
+      <header className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Users</h1>
+        <LogoutButton />
+      </header>
 
       {users.length === 0 ? (
         <p className="text-gray-600">No users found. Create one via the API!</p>
